@@ -1,9 +1,34 @@
 #!/usr/bin/env node
 "use strict";
+var __create = Object.create;
+var __defProp = Object.defineProperty;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __getProtoOf = Object.getPrototypeOf;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __copyProps = (to, from, except, desc) => {
+  if (from && typeof from === "object" || typeof from === "function") {
+    for (let key of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key) && key !== except)
+        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+  }
+  return to;
+};
+var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+  // If the importer is in node compatibility mode or this is not an ESM
+  // file that has been converted to a CommonJS file using a Babel-
+  // compatible transform (i.e. "__esModule" has not been set), then set
+  // "default" to the CommonJS "module.exports" for node compatibility.
+  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+  mod
+));
 
 // src/index.ts
-var import_node_child_process = require("child_process");
-var import_promises = require("readline/promises");
+var import_extract_zip = __toESM(require("extract-zip"));
+var import_promises = require("fs/promises");
+var import_node_os = require("os");
+var import_node_path = require("path");
+var import_promises2 = require("readline/promises");
 var import_node_process = require("process");
 var DEFAULT_ORG = "L5SOD-PREP";
 function parseArgs(args) {
@@ -83,7 +108,7 @@ function printRepos(repos) {
   });
 }
 async function chooseRepo(repos) {
-  const rl = (0, import_promises.createInterface)({ input: import_node_process.stdin, output: import_node_process.stdout });
+  const rl = (0, import_promises2.createInterface)({ input: import_node_process.stdin, output: import_node_process.stdout });
   try {
     while (true) {
       const answer = await rl.question("\nChoose a project number: ");
@@ -98,24 +123,41 @@ async function chooseRepo(repos) {
     rl.close();
   }
 }
-async function cloneRepo(repo) {
+function getArchiveUrl(repo) {
+  const owner = encodeURIComponent(repo.owner.login);
+  const name = encodeURIComponent(repo.name);
+  const branch = repo.default_branch.split("/").map(encodeURIComponent).join("/");
+  return `https://codeload.github.com/${owner}/${name}/zip/refs/heads/${branch}`;
+}
+async function downloadRepo(repo) {
+  const targetDirectory = (0, import_node_path.resolve)(process.cwd(), repo.name);
+  const tempDirectory = await (0, import_promises.mkdtemp)((0, import_node_path.join)((0, import_node_os.tmpdir)(), "create-tubikore-app-"));
+  const archivePath = (0, import_node_path.join)(tempDirectory, `${repo.name}.zip`);
   console.log(`
-Cloning ${repo.name}...
+Downloading ${repo.name}...
 `);
-  await new Promise((resolve, reject) => {
-    const child = (0, import_node_child_process.spawn)("git", ["clone", repo.clone_url], {
-      shell: process.platform === "win32",
-      stdio: "inherit"
-    });
-    child.on("close", (code) => {
-      if (code === 0) {
-        resolve();
-        return;
+  try {
+    const response = await fetch(getArchiveUrl(repo), {
+      headers: {
+        "User-Agent": "create-tubikore-app"
       }
-      reject(new Error(`git clone exited with code ${code ?? "unknown"}.`));
     });
-    child.on("error", reject);
-  });
+    if (!response.ok || !response.body) {
+      throw new Error(`Could not download ${repo.name}. GitHub returned ${response.status}.`);
+    }
+    const archive = Buffer.from(await response.arrayBuffer());
+    await (0, import_promises.writeFile)(archivePath, archive);
+    console.log("Extracting project...\n");
+    await (0, import_extract_zip.default)(archivePath, { dir: tempDirectory });
+    const extractedDirectory = (0, import_node_path.join)(
+      tempDirectory,
+      `${repo.name}-${(0, import_node_path.basename)(repo.default_branch)}`
+    );
+    await (0, import_promises.rename)(extractedDirectory, targetDirectory);
+    console.log(`Done. Project downloaded to ${targetDirectory}`);
+  } finally {
+    await (0, import_promises.rm)(tempDirectory, { force: true, recursive: true });
+  }
 }
 async function main() {
   const options = parseArgs(process.argv.slice(2));
@@ -135,7 +177,7 @@ async function main() {
 Selected: ${selectedRepo.name}`);
   console.log(selectedRepo.html_url);
   if (options.shouldClone) {
-    await cloneRepo(selectedRepo);
+    await downloadRepo(selectedRepo);
   }
 }
 main().catch((error) => {

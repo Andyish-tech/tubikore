@@ -17,7 +17,10 @@ var init_esm_shims = __esm({
 });
 
 // src/index.ts
-import { spawn } from "child_process";
+import extract from "extract-zip";
+import { mkdtemp, rename, rm, writeFile } from "fs/promises";
+import { tmpdir } from "os";
+import { basename, join, resolve } from "path";
 import { createInterface } from "readline/promises";
 import { stdin as input, stdout as output } from "process";
 var require_index = __commonJS({
@@ -116,24 +119,41 @@ Options:
         rl.close();
       }
     }
-    async function cloneRepo(repo) {
+    function getArchiveUrl(repo) {
+      const owner = encodeURIComponent(repo.owner.login);
+      const name = encodeURIComponent(repo.name);
+      const branch = repo.default_branch.split("/").map(encodeURIComponent).join("/");
+      return `https://codeload.github.com/${owner}/${name}/zip/refs/heads/${branch}`;
+    }
+    async function downloadRepo(repo) {
+      const targetDirectory = resolve(process.cwd(), repo.name);
+      const tempDirectory = await mkdtemp(join(tmpdir(), "create-tubikore-app-"));
+      const archivePath = join(tempDirectory, `${repo.name}.zip`);
       console.log(`
-Cloning ${repo.name}...
+Downloading ${repo.name}...
 `);
-      await new Promise((resolve, reject) => {
-        const child = spawn("git", ["clone", repo.clone_url], {
-          shell: process.platform === "win32",
-          stdio: "inherit"
-        });
-        child.on("close", (code) => {
-          if (code === 0) {
-            resolve();
-            return;
+      try {
+        const response = await fetch(getArchiveUrl(repo), {
+          headers: {
+            "User-Agent": "create-tubikore-app"
           }
-          reject(new Error(`git clone exited with code ${code ?? "unknown"}.`));
         });
-        child.on("error", reject);
-      });
+        if (!response.ok || !response.body) {
+          throw new Error(`Could not download ${repo.name}. GitHub returned ${response.status}.`);
+        }
+        const archive = Buffer.from(await response.arrayBuffer());
+        await writeFile(archivePath, archive);
+        console.log("Extracting project...\n");
+        await extract(archivePath, { dir: tempDirectory });
+        const extractedDirectory = join(
+          tempDirectory,
+          `${repo.name}-${basename(repo.default_branch)}`
+        );
+        await rename(extractedDirectory, targetDirectory);
+        console.log(`Done. Project downloaded to ${targetDirectory}`);
+      } finally {
+        await rm(tempDirectory, { force: true, recursive: true });
+      }
     }
     async function main() {
       const options = parseArgs(process.argv.slice(2));
@@ -153,7 +173,7 @@ Cloning ${repo.name}...
 Selected: ${selectedRepo.name}`);
       console.log(selectedRepo.html_url);
       if (options.shouldClone) {
-        await cloneRepo(selectedRepo);
+        await downloadRepo(selectedRepo);
       }
     }
     main().catch((error) => {

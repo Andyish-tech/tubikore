@@ -1,15 +1,21 @@
 #!/usr/bin/env node
 
-import { spawn } from "node:child_process";
+import extract from "extract-zip";
+import { mkdtemp, rename, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { basename, join, resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 
 type GitHubRepo = {
   name: string;
   description: string | null;
-  clone_url: string;
   html_url: string;
   private: boolean;
+  default_branch: string;
+  owner: {
+    login: string;
+  };
 };
 
 type CliOptions = {
@@ -131,26 +137,48 @@ async function chooseRepo(repos: GitHubRepo[]): Promise<GitHubRepo> {
   }
 }
 
-async function cloneRepo(repo: GitHubRepo): Promise<void> {
-  console.log(`\nCloning ${repo.name}...\n`);
+function getArchiveUrl(repo: GitHubRepo): string {
+  const owner = encodeURIComponent(repo.owner.login);
+  const name = encodeURIComponent(repo.name);
+  const branch = repo.default_branch.split("/").map(encodeURIComponent).join("/");
 
-  await new Promise<void>((resolve, reject) => {
-    const child = spawn("git", ["clone", repo.clone_url], {
-      shell: process.platform === "win32",
-      stdio: "inherit",
+  return `https://codeload.github.com/${owner}/${name}/zip/refs/heads/${branch}`;
+}
+
+async function downloadRepo(repo: GitHubRepo): Promise<void> {
+  const targetDirectory = resolve(process.cwd(), repo.name);
+  const tempDirectory = await mkdtemp(join(tmpdir(), "create-tubikore-app-"));
+  const archivePath = join(tempDirectory, `${repo.name}.zip`);
+
+  console.log(`\nDownloading ${repo.name}...\n`);
+
+  try {
+    const response = await fetch(getArchiveUrl(repo), {
+      headers: {
+        "User-Agent": "create-tubikore-app",
+      },
     });
 
-    child.on("close", (code: number | null) => {
-      if (code === 0) {
-        resolve();
-        return;
-      }
+    if (!response.ok || !response.body) {
+      throw new Error(`Could not download ${repo.name}. GitHub returned ${response.status}.`);
+    }
 
-      reject(new Error(`git clone exited with code ${code ?? "unknown"}.`));
-    });
+    const archive = Buffer.from(await response.arrayBuffer());
+    await writeFile(archivePath, archive);
 
-    child.on("error", reject);
-  });
+    console.log("Extracting project...\n");
+    await extract(archivePath, { dir: tempDirectory });
+
+    const extractedDirectory = join(
+      tempDirectory,
+      `${repo.name}-${basename(repo.default_branch)}`,
+    );
+
+    await rename(extractedDirectory, targetDirectory);
+    console.log(`Done. Project downloaded to ${targetDirectory}`);
+  } finally {
+    await rm(tempDirectory, { force: true, recursive: true });
+  }
 }
 
 async function main(): Promise<void> {
@@ -178,7 +206,7 @@ async function main(): Promise<void> {
   console.log(selectedRepo.html_url);
 
   if (options.shouldClone) {
-    await cloneRepo(selectedRepo);
+    await downloadRepo(selectedRepo);
   }
 }
 
