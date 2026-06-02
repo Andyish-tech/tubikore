@@ -1,0 +1,57 @@
+{
+  "name": "tubikore",
+  "version": "1.0.0",
+  "description": "reka tubikore twese, warasenze ubura iki sha!",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "tubikore": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Andyish-tech/tubikore.git"
+  },
+  "keywords": [
+    "tubikore",
+    "tubikorejs",
+    "tubikore.js",
+    "tubikore-node",
+    "tubikore-nodejs",
+    "tubikore-node.js",
+    "tubikore-core",
+    "tubikore-corejs",
+    "tubikore-core.js",
+    "dutsinde",
+    "L5SOD",
+    "SOD",
+    "National Exam",
+    "npx tubikore",
+    "npm install tubikore",
+    "yarn add tubikore",
+    "npx exam",
+    "intango tss"
+  ],
+  "author": "Ishimwe Andy",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Andyish-tech/tubikore/issues"
+  },
+  "homepage": "https://github.com/Andyish-tech/tubikore#readme",
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "tsup": "^8.5.1",
+    "typescript": "^6.0.3"
+  }
+}
