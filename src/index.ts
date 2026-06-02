@@ -14,16 +14,16 @@ type GitHubRepo = {
 
 type CliOptions = {
   org: string;
-  clone: boolean;
+  shouldClone: boolean;
   help: boolean;
 };
 
-const DEFAULT_ORG = "Andyish-tech";
+const DEFAULT_ORG = "L5SOD-PREP";
 
 function parseArgs(args: string[]): CliOptions {
   const options: CliOptions = {
     org: DEFAULT_ORG,
-    clone: false,
+    shouldClone: true,
     help: false,
   };
 
@@ -36,7 +36,12 @@ function parseArgs(args: string[]): CliOptions {
     }
 
     if (arg === "--clone" || arg === "-c" || arg === "-app" || arg === "--app") {
-      options.clone = true;
+      options.shouldClone = true;
+      continue;
+    }
+
+    if (arg === "--no-clone" || arg === "--link-only") {
+      options.shouldClone = false;
       continue;
     }
 
@@ -56,20 +61,22 @@ function parseArgs(args: string[]): CliOptions {
 
 function showHelp(): void {
   console.log(`
-tubikore
+create-tubikore-app
 
-Show projects from a GitHub organization and optionally clone one.
+Show projects from a GitHub organization and download the selected one.
 
 Usage:
-  npx tubikore
-  npx tubikore --clone
-  npx tubikore --org Andyish-tech --clone
+  npx create-tubikore-app
+  npx create-tubikore-app --org L5SOD-PREP
+  npx create-tubikore-app --no-clone
 
 Options:
-  --org <name>   GitHub organization/user name. Default: ${DEFAULT_ORG}
-  --clone, -c    Clone the selected project
-  --app, -app    Alias for --clone
-  --help, -h     Show this help
+  --org <name>         GitHub organization/user name. Default: ${DEFAULT_ORG}
+  --clone, -c          Download the selected project. Enabled by default
+  --app, -app          Alias for --clone
+  --no-clone           Show the selected project link without downloading
+  --link-only          Alias for --no-clone
+  --help, -h           Show this help
 `);
 }
 
@@ -170,7 +177,7 @@ async function main(): Promise<void> {
   console.log(`\nSelected: ${selectedRepo.name}`);
   console.log(selectedRepo.html_url);
 
-  if (options.clone) {
+  if (options.shouldClone) {
     await cloneRepo(selectedRepo);
   }
 }

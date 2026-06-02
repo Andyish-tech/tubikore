@@ -5,11 +5,11 @@
 var import_node_child_process = require("child_process");
 var import_promises = require("readline/promises");
 var import_node_process = require("process");
-var DEFAULT_ORG = "Andyish-tech";
+var DEFAULT_ORG = "L5SOD-PREP";
 function parseArgs(args) {
   const options = {
     org: DEFAULT_ORG,
-    clone: false,
+    shouldClone: true,
     help: false
   };
   for (let index = 0; index < args.length; index += 1) {
@@ -19,7 +19,11 @@ function parseArgs(args) {
       continue;
     }
     if (arg === "--clone" || arg === "-c" || arg === "-app" || arg === "--app") {
-      options.clone = true;
+      options.shouldClone = true;
+      continue;
+    }
+    if (arg === "--no-clone" || arg === "--link-only") {
+      options.shouldClone = false;
       continue;
     }
     if (arg === "--org" && args[index + 1]) {
@@ -35,20 +39,22 @@ function parseArgs(args) {
 }
 function showHelp() {
   console.log(`
-tubikore
+create-tubikore-app
 
-Show projects from a GitHub organization and optionally clone one.
+Show projects from a GitHub organization and download the selected one.
 
 Usage:
-  npx tubikore
-  npx tubikore --clone
-  npx tubikore --org Andyish-tech --clone
+  npx create-tubikore-app
+  npx create-tubikore-app --org L5SOD-PREP
+  npx create-tubikore-app --no-clone
 
 Options:
-  --org <name>   GitHub organization/user name. Default: ${DEFAULT_ORG}
-  --clone, -c    Clone the selected project
-  --app, -app    Alias for --clone
-  --help, -h     Show this help
+  --org <name>         GitHub organization/user name. Default: ${DEFAULT_ORG}
+  --clone, -c          Download the selected project. Enabled by default
+  --app, -app          Alias for --clone
+  --no-clone           Show the selected project link without downloading
+  --link-only          Alias for --no-clone
+  --help, -h           Show this help
 `);
 }
 async function fetchOrganizationRepos(org) {
@@ -128,7 +134,7 @@ async function main() {
   console.log(`
 Selected: ${selectedRepo.name}`);
   console.log(selectedRepo.html_url);
-  if (options.clone) {
+  if (options.shouldClone) {
     await cloneRepo(selectedRepo);
   }
 }

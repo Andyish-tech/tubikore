@@ -1,12 +1,12 @@
 {
-  "name": "tubikore",
-  "version": "1.0.0",
+  "name": "create-tubikore-app",
+  "version": "1.0.2",
   "description": "reka tubikore twese, warasenze ubura iki sha!",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
   "bin": {
-    "tubikore": "./dist/index.js"
+    "create-tubikore-app": "dist/index.js"
   },
   "files": [
     "dist"
@@ -33,7 +33,7 @@
     "L5SOD",
     "SOD",
     "National Exam",
-    "npx tubikore",
+    "npx create-tubikore-app",
     "npm install tubikore",
     "yarn add tubikore",
     "npx exam",
